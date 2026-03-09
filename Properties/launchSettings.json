@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VRC_cantalkcn (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "VRC_cantalkcn (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

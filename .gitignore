@@ -1,0 +1,48 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+
+# IDE / editor
+.vs/
+.vscode/
+.claude/
+
+# User-specific files
+*.user
+*.suo
+*.pdb
+
+# Logs and runtime data
+*.log
+
+# Local config overrides
+config.json
+config.local.json
+
+# External tools and bundled binaries/models
+tools/ffmpeg/
+tools/sherpa-default/
+tools/tmp/
+tools/*.json
+*.onnx
+*.ckpt
+*.pth
+
+# Audio and temporary media
+*.wav
+*.mp3
+*.tmp
+*.bak
+
+# Packaging secrets / redistributables
+packaging/*.pfx
+packaging/*.cer
+packaging/prereqs/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated docs
+Ucantalk使用手册.docx
