@@ -2,6 +2,14 @@
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja-JP.md) | [한국어](README.ko-KR.md)
 
+## ドキュメント
+
+- [マニュアル索引](manuals/index.md)
+- [中国語マニュアル](manuals/manual.zh-CN.md)
+- [英語マニュアル](manuals/manual.en-US.md)
+- [日本語マニュアル](manuals/manual.ja-JP.md)
+- [韓国語マニュアル](manuals/manual.ko-KR.md)
+
 Ucantalk は、VRChat スタイルの音声支援コミュニケーション向けに設計された WinUI 3 ベースの Windows デスクトップアプリです。
 テキスト読み上げ、翻訳、音声入力、音声ルーティング、スマホ操作、内蔵オーディオプレーヤーを 1 つの C# アプリに統合しています。
 

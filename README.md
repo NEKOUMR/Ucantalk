@@ -2,6 +2,14 @@
 
 [English](README.md) | [简体中文](docs/README.zh-CN.md) | [日本語](docs/README.ja-JP.md) | [한국어](docs/README.ko-KR.md)
 
+## Documentation
+
+- [Manual index](docs/manuals/index.md)
+- [Chinese manual](docs/manuals/manual.zh-CN.md)
+- [English manual](docs/manuals/manual.en-US.md)
+- [Japanese manual](docs/manuals/manual.ja-JP.md)
+- [Korean manual](docs/manuals/manual.ko-KR.md)
+
 Ucantalk is a WinUI 3 desktop app for VRChat-style speech assistance on Windows.
 It combines text-to-speech, translation, speech input, audio routing, mobile control, and a built-in audio player in a single C# application.
 
