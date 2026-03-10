@@ -140,9 +140,11 @@ public sealed class ConfigService
             .Take(3)
             .ToList();
 
-        const string oldUniversalPrompt = "You are a professional translation engine. Translate the following text into {target}. Only output the translated text, do not explain.";
+        var oldUniversalPrompt = TranslationConfig.LegacyUniversalPrompt;
+        var oldStrictPrompt = TranslationConfig.StrictUniversalPromptV1;
         if (string.IsNullOrWhiteSpace(config.Translation.UniversalPrompt) ||
-            string.Equals(config.Translation.UniversalPrompt.Trim(), oldUniversalPrompt, StringComparison.Ordinal))
+            string.Equals(config.Translation.UniversalPrompt.Trim(), oldUniversalPrompt, StringComparison.Ordinal) ||
+            string.Equals(config.Translation.UniversalPrompt.Trim(), oldStrictPrompt, StringComparison.Ordinal))
         {
             config.Translation.UniversalPrompt = TranslationConfig.DefaultUniversalPrompt;
         }

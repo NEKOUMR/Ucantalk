@@ -358,12 +358,24 @@ public sealed class TranslatorService
         var basePrompt = (config.UniversalPrompt ?? string.Empty)
             .Replace("{target}", lang, StringComparison.OrdinalIgnoreCase);
 
-        if (!strictRetry)
+        if (string.IsNullOrWhiteSpace(basePrompt))
         {
-            return basePrompt;
+            basePrompt = TranslationConfig.DefaultUniversalPrompt.Replace("{target}", lang, StringComparison.OrdinalIgnoreCase);
         }
 
-        return basePrompt +
+        var mandatoryGuard =
+            $"MANDATORY TRANSLATION RULES: Translate the source text into {lang} only. Output only the translated text. Never answer the user's question. Never define terms. Never explain, summarize, infer intent, add notes, or add extra content. Preserve tone, punctuation, and question form exactly. " +
+            $"强制规则：你只能把原文翻译成{lang}，只输出翻译结果，绝不能回答问题，绝不能解释、下定义、补充背景、扩写内容。原文是疑问句时，只能输出翻译后的疑问句。";
+
+        var combinedPrompt =
+            $"{mandatoryGuard}\n\nUSER CUSTOM TRANSLATION PROMPT:\n{basePrompt}";
+
+        if (!strictRetry)
+        {
+            return combinedPrompt;
+        }
+
+        return combinedPrompt +
                $" CRITICAL RULE: Translate into {lang} only. If the source asks a question, output only the translated question. Never answer it. Never define terms. Never explain concepts. Never write any extra sentence before or after the translation. If you answer instead of translate, the output is wrong.";
     }
 

@@ -894,6 +894,11 @@ public sealed partial class MainPage : Page
             InputTextBox.Text = string.Empty;
             RuntimeLogService.Info($"Send start. Engine={_config.TtsEngine}, ProfileIndex={_config.CurrentProfile}");
 
+            if (!_config.EnableTextOutput && !_config.EnableTts)
+            {
+                throw new InvalidOperationException(L("至少启用一种输出方式：文字或语音。"));
+            }
+
             if (_config.EnableTts &&
                 string.Equals(_config.TtsEngine, "GPT-SoVITS", StringComparison.OrdinalIgnoreCase))
             {
@@ -918,7 +923,7 @@ public sealed partial class MainPage : Page
             SetStatus(L("翻译中..."));
             var translation = await _translatorService.TranslateAsync(rawText, _config.Translation, _config.Proxy);
 
-            if (!_config.ForceSync)
+            if (_config.EnableTextOutput && !_config.ForceSync)
             {
                 TrySendOscChatbox(translation.DisplayText);
             }
@@ -934,7 +939,7 @@ public sealed partial class MainPage : Page
 
             if (!_config.EnableTts)
             {
-                if (_config.ForceSync)
+                if (_config.EnableTextOutput && _config.ForceSync)
                 {
                     TrySendOscChatbox(translation.DisplayText);
                 }
@@ -963,7 +968,7 @@ public sealed partial class MainPage : Page
                 CleanPunctuation = _config.CleanPunctuation,
             }, _config.Proxy);
 
-            if (_config.ForceSync)
+            if (_config.EnableTextOutput && _config.ForceSync)
             {
                 TrySendOscChatbox(translation.DisplayText);
             }
@@ -992,8 +997,8 @@ public sealed partial class MainPage : Page
                 SetStatus(LF("播放设备异常，已回退默认设备: {0}", playEx.Message));
             }
 
-            AddRecentSpeechHistory(translation.TtsText);
-            SetStatus(L("就绪"));
+            AddRecentSpeechHistory(_config.EnableTextOutput ? translation.DisplayText : translation.TtsText);
+            SetStatus(_config.EnableTextOutput ? L("就绪") : L("已播放语音（未输出文字）。"));
         }
         catch (Exception ex)
         {
@@ -1480,9 +1485,18 @@ public sealed partial class MainPage : Page
 
     private void ApplyTranslationPreset(string api, string model, bool keepApiKey, string keyValue = "")
     {
+        var currentPrompt = UniPromptBox.Text?.Trim() ?? string.Empty;
+
         UniApiBox.Text = api;
         UniModelBox.Text = model;
-        UniPromptBox.Text = TranslationConfig.DefaultUniversalPrompt;
+        if (string.IsNullOrWhiteSpace(currentPrompt) ||
+            string.Equals(currentPrompt, TranslationConfig.LegacyUniversalPrompt, StringComparison.Ordinal) ||
+            string.Equals(currentPrompt, TranslationConfig.StrictUniversalPromptV1, StringComparison.Ordinal) ||
+            string.Equals(currentPrompt, TranslationConfig.DefaultUniversalPrompt, StringComparison.Ordinal))
+        {
+            UniPromptBox.Text = TranslationConfig.DefaultUniversalPrompt;
+        }
+
         if (!keepApiKey)
         {
             UniKeyBox.Text = keyValue;
@@ -2475,6 +2489,7 @@ public sealed partial class MainPage : Page
         EdgePitchSlider.Value = _config.EdgePitch;
         VolumeSlider.Value = _config.VolumePercent;
         GptSpeedSlider.Value = _config.GptSpeed;
+        EnableTextOutputSwitch.IsOn = _config.EnableTextOutput;
         EnableTtsSwitch.IsOn = _config.EnableTts;
         ForceSyncSwitch.IsOn = _config.ForceSync;
         CleanPuncSwitch.IsOn = _config.CleanPunctuation;
@@ -2550,6 +2565,7 @@ public sealed partial class MainPage : Page
         _config.EdgePitch = EdgePitchSlider.Value;
         _config.VolumePercent = VolumeSlider.Value;
         _config.GptSpeed = GptSpeedSlider.Value;
+        _config.EnableTextOutput = EnableTextOutputSwitch.IsOn;
         _config.EnableTts = EnableTtsSwitch.IsOn;
         _config.ForceSync = ForceSyncSwitch.IsOn;
         _config.CleanPunctuation = CleanPuncSwitch.IsOn;

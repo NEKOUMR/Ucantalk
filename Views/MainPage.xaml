@@ -220,11 +220,13 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <ToggleSwitch x:Name="EnableTtsSwitch" Header="启用TTS朗读" IsOn="True" Grid.Column="0"/>
-                                        <ToggleSwitch x:Name="ForceSyncSwitch" Header="强制音画同步" IsOn="True" Grid.Column="1"/>
-                                        <ToggleSwitch x:Name="CleanPuncSwitch" Header="GPT 去标点" IsOn="False" Grid.Column="2"/>
-                                        <ToggleSwitch x:Name="AutoSendSwitch" Header="语音识别后自动发送" Grid.Column="3" Toggled="AutoSendSwitch_Toggled"/>
+                                        <ToggleSwitch x:Name="EnableTextOutputSwitch" Header="输出文字到聊天框" IsOn="True" Grid.Column="0"/>
+                                        <ToggleSwitch x:Name="EnableTtsSwitch" Header="启用TTS朗读" IsOn="True" Grid.Column="1"/>
+                                        <ToggleSwitch x:Name="ForceSyncSwitch" Header="强制音画同步" IsOn="True" Grid.Column="2"/>
+                                        <ToggleSwitch x:Name="CleanPuncSwitch" Header="GPT 去标点" IsOn="False" Grid.Column="3"/>
+                                        <ToggleSwitch x:Name="AutoSendSwitch" Header="语音识别后自动发送" Grid.Column="4" Toggled="AutoSendSwitch_Toggled"/>
                                     </Grid>
                                 </StackPanel>
                             </Border>
