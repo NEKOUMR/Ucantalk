@@ -140,6 +140,13 @@ public sealed class ConfigService
             .Take(3)
             .ToList();
 
+        const string oldUniversalPrompt = "You are a professional translation engine. Translate the following text into {target}. Only output the translated text, do not explain.";
+        if (string.IsNullOrWhiteSpace(config.Translation.UniversalPrompt) ||
+            string.Equals(config.Translation.UniversalPrompt.Trim(), oldUniversalPrompt, StringComparison.Ordinal))
+        {
+            config.Translation.UniversalPrompt = TranslationConfig.DefaultUniversalPrompt;
+        }
+
         // Defensive cap: huge prompt text can freeze large TextBox rendering in WinUI.
         const int maxPromptLength = 4000;
         if (!string.IsNullOrEmpty(config.Translation.UniversalPrompt) &&

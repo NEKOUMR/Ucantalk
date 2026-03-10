@@ -841,6 +841,24 @@ public sealed partial class MainPage : Page
             .ToList();
         _configService.Save(_config);
         UpdateRecentSpeechHistoryUiState();
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_recentSpeechHistory.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                RecentSpeechHistoryListView.UpdateLayout();
+                RecentSpeechHistoryListView.ScrollIntoView(_recentSpeechHistory[0]);
+            }
+            catch (Exception ex)
+            {
+                RuntimeLogService.Warn($"Scroll recent speech history failed: {ex.Message}");
+            }
+        });
     }
 
     private void UpdateRecentSpeechHistoryUiState()
@@ -876,23 +894,24 @@ public sealed partial class MainPage : Page
             InputTextBox.Text = string.Empty;
             RuntimeLogService.Info($"Send start. Engine={_config.TtsEngine}, ProfileIndex={_config.CurrentProfile}");
 
-            if (string.Equals(_config.TtsEngine, "GPT-SoVITS", StringComparison.OrdinalIgnoreCase))
+            if (_config.EnableTts &&
+                string.Equals(_config.TtsEngine, "GPT-SoVITS", StringComparison.OrdinalIgnoreCase))
             {
                 await EnsureGptApiRunningAsync(showStatus: true);
                 if (!await IsGptApiReachableAsync(_config.GptApiUrl, _config.Proxy))
                 {
-                    throw new InvalidOperationException("GPT-SoVITS API 未就绪，请检查 api.bat 和 API 地址。");
+                    throw new InvalidOperationException(L("GPT-SoVITS API 未就绪，请检查 api.bat 和 API 地址。"));
                 }
 
                 var refAudioPath = _config.RefAudioPath?.Trim() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(refAudioPath))
                 {
-                    throw new InvalidOperationException("GPT-SoVITS 需要参考音频(ref_audio_path)。请在语音引擎页选择“音频语音(参考音频路径)”。");
+                    throw new InvalidOperationException(L("GPT-SoVITS 需要参考音频(ref_audio_path)。请在语音引擎页选择“音频语音(参考音频路径)”。"));
                 }
 
                 if (!File.Exists(refAudioPath))
                 {
-                    throw new InvalidOperationException($"参考音频文件不存在: {refAudioPath}");
+                    throw new InvalidOperationException(LF("参考音频文件不存在: {0}", refAudioPath));
                 }
             }
 
@@ -912,6 +931,18 @@ public sealed partial class MainPage : Page
                 forcedTargetForTts);
             RuntimeLogService.Info(
                 $"TTS language resolved. ui={_config.TextLanguage}, forcedTarget={_config.Translation.MainTarget}, appliedForced={forcedTargetForTts}, effective={effectiveTtsLanguage}");
+
+            if (!_config.EnableTts)
+            {
+                if (_config.ForceSync)
+                {
+                    TrySendOscChatbox(translation.DisplayText);
+                }
+
+                AddRecentSpeechHistory(translation.DisplayText);
+                SetStatus(L("已发送翻译文本（TTS已关闭）。"));
+                return;
+            }
 
             SetStatus(L("语音合成中..."));
             generatedFile = await _ttsService.GenerateSpeechFileAsync(new TtsRequest
@@ -1061,7 +1092,7 @@ public sealed partial class MainPage : Page
         {
             if (showStatus)
             {
-                SetStatus("未找到 GPT-SoVITS 启动脚本，请在设置页配置 api.bat。");
+                SetStatus(L("未找到 GPT-SoVITS 启动脚本，请在设置页配置 api.bat。"));
             }
 
             RuntimeLogService.Warn($"api.bat not found: '{batPath}'");
@@ -1086,7 +1117,7 @@ public sealed partial class MainPage : Page
         {
             if (showStatus)
             {
-                SetStatus("正在启动 GPT-SoVITS API...");
+                SetStatus(L("正在启动 GPT-SoVITS API..."));
             }
 
             RuntimeLogService.Info($"Starting GPT-SoVITS API via: {batPath}");
@@ -1110,7 +1141,7 @@ public sealed partial class MainPage : Page
                 {
                     if (showStatus)
                     {
-                        SetStatus("GPT-SoVITS API 已启动。");
+                        SetStatus(L("GPT-SoVITS API 已启动。"));
                     }
 
                     RuntimeLogService.Info("GPT-SoVITS API is reachable.");
@@ -1121,7 +1152,7 @@ public sealed partial class MainPage : Page
 
             if (showStatus)
             {
-                SetStatus("GPT-SoVITS API 启动超时，请检查 api.bat 控制台输出。");
+                SetStatus(L("GPT-SoVITS API 启动超时，请检查 api.bat 控制台输出。"));
             }
 
             RuntimeLogService.Warn("GPT-SoVITS API start timeout.");
@@ -1451,6 +1482,7 @@ public sealed partial class MainPage : Page
     {
         UniApiBox.Text = api;
         UniModelBox.Text = model;
+        UniPromptBox.Text = TranslationConfig.DefaultUniversalPrompt;
         if (!keepApiKey)
         {
             UniKeyBox.Text = keyValue;
@@ -1666,7 +1698,7 @@ public sealed partial class MainPage : Page
     {
         BackgroundImagePathBox.Text = string.Empty;
         ScheduleAppearanceApply(immediate: true);
-        SetStatus("背景图已清除。");
+        SetStatus(L("背景图已清除。"));
     }
 
     private void AppearanceControl_Changed(object sender, RoutedEventArgs e)
@@ -1717,7 +1749,7 @@ public sealed partial class MainPage : Page
 
         ApplyAppearanceFromConfig();
         _configService.Save(_config);
-        SetStatus("外观已恢复默认。");
+        SetStatus(L("外观已恢复默认。"));
     }
 
     private void ProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1823,7 +1855,7 @@ public sealed partial class MainPage : Page
         var newName = ProfileNameBox.Text?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(newName))
         {
-            SetStatus("档案名称不能为空。");
+            SetStatus(L("档案名称不能为空。"));
             return;
         }
 
@@ -1832,7 +1864,7 @@ public sealed partial class MainPage : Page
             .Any(p => string.Equals(p.Name, newName, StringComparison.OrdinalIgnoreCase));
         if (duplicate)
         {
-            SetStatus($"已存在同名档案: {newName}");
+            SetStatus(LF("已存在同名档案: {0}", newName));
             return;
         }
 
@@ -1840,7 +1872,7 @@ public sealed partial class MainPage : Page
         RebindProfilesAndSelect(idx);
         _configService.Save(_config);
         RuntimeLogService.Info($"Profile renamed. Index={idx}, Name={newName}");
-        SetStatus($"档案已重命名为: {newName}");
+        SetStatus(LF("档案已重命名为: {0}", newName));
     }
 
     private void OpenPluginFolderButton_Click(object sender, RoutedEventArgs e)
@@ -1901,14 +1933,14 @@ public sealed partial class MainPage : Page
     private void RefreshLogsButton_Click(object sender, RoutedEventArgs e)
     {
         LoadLogsToUi();
-        SetStatus("日志已刷新。");
+        SetStatus(L("日志已刷新。"));
     }
 
     private void ClearLogsButton_Click(object sender, RoutedEventArgs e)
     {
         RuntimeLogService.Clear();
         LoadLogsToUi();
-        SetStatus("日志已清空。");
+        SetStatus(L("日志已清空。"));
     }
 
     private void OpenLogsFolderButton_Click(object sender, RoutedEventArgs e)
@@ -1924,7 +1956,7 @@ public sealed partial class MainPage : Page
         catch (Exception ex)
         {
             RuntimeLogService.Error("Open logs folder failed.", ex);
-            SetStatus($"打开日志目录失败: {ex.Message}");
+            SetStatus(LF("打开日志目录失败: {0}", ex.Message));
         }
     }
 
@@ -1934,7 +1966,7 @@ public sealed partial class MainPage : Page
         var dataPackage = new DataPackage();
         dataPackage.SetText(content);
         Clipboard.SetContent(dataPackage);
-        SetStatus("日志已复制到剪贴板。");
+        SetStatus(L("日志已复制到剪贴板。"));
     }
 
     private void OpenAppDataFolderButton_Click(object sender, RoutedEventArgs e)
@@ -1950,7 +1982,7 @@ public sealed partial class MainPage : Page
         catch (Exception ex)
         {
             RuntimeLogService.Error("Open app data folder failed.", ex);
-            SetStatus($"打开数据目录失败: {ex.Message}");
+            SetStatus(LF("打开数据目录失败: {0}", ex.Message));
         }
     }
 
@@ -1969,7 +2001,7 @@ public sealed partial class MainPage : Page
         var dataPackage = new DataPackage();
         dataPackage.SetText(info);
         Clipboard.SetContent(dataPackage);
-        SetStatus("版本信息已复制到剪贴板。");
+        SetStatus(L("版本信息已复制到剪贴板。"));
     }
 
     private void PlayerPlayButton_Click(object sender, RoutedEventArgs e)
@@ -2443,6 +2475,7 @@ public sealed partial class MainPage : Page
         EdgePitchSlider.Value = _config.EdgePitch;
         VolumeSlider.Value = _config.VolumePercent;
         GptSpeedSlider.Value = _config.GptSpeed;
+        EnableTtsSwitch.IsOn = _config.EnableTts;
         ForceSyncSwitch.IsOn = _config.ForceSync;
         CleanPuncSwitch.IsOn = _config.CleanPunctuation;
         RecentSpeechHistorySwitch.IsOn = _config.EnableRecentSpeechHistory;
@@ -2517,6 +2550,7 @@ public sealed partial class MainPage : Page
         _config.EdgePitch = EdgePitchSlider.Value;
         _config.VolumePercent = VolumeSlider.Value;
         _config.GptSpeed = GptSpeedSlider.Value;
+        _config.EnableTts = EnableTtsSwitch.IsOn;
         _config.ForceSync = ForceSyncSwitch.IsOn;
         _config.CleanPunctuation = CleanPuncSwitch.IsOn;
         _config.EnableRecentSpeechHistory = RecentSpeechHistorySwitch.IsOn;

@@ -298,7 +298,107 @@ normal(b('功能: '), n('可以在手机上输入文字发送，无需切屏。'
 blank()
 
 # ─── 第四章 ────────────────────────────────────────────────────────────────────
-h2('🔧 第四章: Vosk 离线语音模型配置（可选）')
+h2('🎙️ 第四章: Sherpa-ONNX 语音识别模型详解')
+normal(n('Sherpa-ONNX 是软件内置的主力离线语音识别引擎，精度高、速度快，支持 CPU / NVIDIA GPU / DirectML 多种运算后端，完全在本地运行，'))
+normal(b('无需联网，不会上传任何音频数据。'))
+normal(n('软件已内置一个高质量中文模型（'), b('tools/sherpa-default/'), n('），开箱即用，无需额外下载。如需识别其他语言，按本章说明下载对应模型即可。'))
+
+h3('4.1 模型总览')
+normal(b('官方模型列表页面（可浏览所有可用模型）：'))
+normal(n('https://k2-fsa.github.io/sherpa/onnx/pretrained_models/index.html'))
+normal(b('GitHub 发布页（直接下载 .tar.bz2 压缩包）：'))
+normal(n('https://github.com/k2-fsa/sherpa-onnx/releases'))
+
+h3('4.2 各语言推荐模型 & 下载链接')
+
+h4('① 中文（内置，推荐）')
+normal(n('软件已内置此模型，无需下载，直接使用。'))
+normal(b('内置模型：'), n('sherpa-onnx-streaming-zipformer-zh-int8（中文流式，量化版，约200MB）'))
+normal(n('若想手动更换，推荐以下模型之一：'))
+normal(b('中文+英文 双语 Paraformer（流式，推荐）'))
+normal(n('  模型名：sherpa-onnx-streaming-paraformer-bilingual-zh-en'))
+normal(n('  GitHub 下载：'))
+normal(n('  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2'))
+normal(n('  国内镜像：'))
+normal(n('  https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en'))
+normal(n('  特点：支持普通话+英语，同时支持河南/天津/四川方言'))
+normal(b('中文+英文 双语 Zipformer（流式）'))
+normal(n('  模型名：sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20'))
+normal(n('  GitHub 下载：'))
+normal(n('  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2'))
+normal(n('  国内镜像：'))
+normal(n('  https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20'))
+
+h4('② 英文')
+normal(b('Streaming Zipformer English（推荐）'))
+normal(n('  模型名：sherpa-onnx-streaming-zipformer-en-2023-06-21'))
+normal(n('  GitHub 下载：'))
+normal(n('  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-21.tar.bz2'))
+normal(n('  国内镜像：'))
+normal(n('  https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-21'))
+normal(n('  特点：基于 LibriSpeech + GigaSpeech 训练，识别质量高'))
+
+h4('③ 日文')
+normal(n('日文目前没有官方流式模型，推荐使用下方的 SenseVoice 多语言模型（同时支持中英日韩）。'))
+normal(b('SenseVoice 多语言模型（中+英+日+韩+粤，推荐）'))
+normal(n('  模型名：sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17'))
+normal(n('  GitHub 下载（int8 量化版，约230MB）：'))
+normal(n('  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2'))
+normal(n('  国内镜像：'))
+normal(n('  https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17-int8'))
+normal(n('  特点：一个模型同时搞定中英日韩粤五种语言，体积小，强烈推荐多语言用户使用'))
+normal(b('Zipformer Japanese（纯日文离线模型）'))
+normal(n('  模型名：sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01'))
+normal(n('  GitHub 下载：'))
+normal(n('  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01.tar.bz2'))
+normal(n('  特点：基于 35000 小时 ReazonSpeech v2.0 日语数据训练，纯日文识别精度高'))
+
+h4('④ 韩文')
+normal(b('Streaming Zipformer Korean（推荐）'))
+normal(n('  模型名：sherpa-onnx-streaming-zipformer-korean-2024-06-16'))
+normal(n('  GitHub 下载：'))
+normal(n('  https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-korean-2024-06-16.tar.bz2'))
+normal(n('  国内镜像：'))
+normal(n('  https://hf-mirror.com/k2-fsa/sherpa-onnx-streaming-zipformer-korean-2024-06-16'))
+normal(n('  特点：基于 KsponSpeech 语料训练，纯韩语识别'))
+
+h4('⑤ SenseVoice：一个模型走天下（强烈推荐多语言用户）')
+normal(n('SenseVoice 是阿里巴巴开源的多语言语音识别模型，一个文件同时支持 '), b('中文、英文、日文、韩文、粤语'), n('五种语言，自动识别语种，无需手动切换。'))
+normal(n('下载后在软件中将 '), b('Sherpa 模型路径'), n(' 指向解压后的文件夹，引擎类型软件会自动识别。'))
+
+h3('4.3 下载与安装步骤')
+normal(b('第一步：下载模型'))
+normal(n('点击上方对应语言的 GitHub 下载链接，得到一个 .tar.bz2 压缩包。'))
+normal(n('国内网络较慢时，使用 '), b('hf-mirror.com'), n(' 国内镜像链接下载。'))
+normal(b('第二步：解压'))
+normal(n('使用 7-Zip 或 WinRAR 解压 .tar.bz2 文件，得到一个包含模型文件的文件夹。'))
+normal(n('例如：sherpa-onnx-streaming-zipformer-en-2023-06-21/'))
+normal(b('⚠️ 路径注意：'), n('请将文件夹放在全英文路径下（如 C:\\sherpa-models\\...），路径中不要有中文或空格。'))
+normal(b('第三步：配置到软件'))
+normal(n('打开软件 '), b('🎙️ 语音识别'), n(' 页面。'))
+normal(n('识别引擎选择 '), b('Sherpa-ONNX'), n('。'))
+normal(n('点击 '), b('Sherpa 模型路径'), n(' 右侧的 📂 图标，选中解压后的模型文件夹（即包含 .onnx 文件和 tokens.txt 的那个文件夹）。'))
+normal(n('点击保存，重新启动语音识别即可。'))
+
+h3('4.4 运算后端选择')
+normal(b('CPU（默认）'), n('：兼容所有设备，无需额外配置，速度适中。'))
+normal(b('CUDA'), n('：需要 NVIDIA 显卡（GTX 10 系及以上），速度最快，延迟最低。'))
+normal(b('DML（DirectML）'), n('：支持 AMD、Intel 集显等非 NVIDIA 显卡加速。'))
+normal(b('线程数建议：'), n('CPU 核心数的一半（如 8 核 CPU 设为 4）。'))
+normal(b('解码方式建议：'), n('greedy_search 速度更快；modified_beam_search 精度更高但更消耗性能。'))
+
+h3('4.5 常见模型文件结构说明')
+normal(n('解压后的文件夹结构如下（以 Zipformer 为例）：'))
+normal(b('encoder-epoch-xx.int8.onnx'), n(' — 编码器（核心，用量化版 int8 体积更小）'))
+normal(b('decoder-epoch-xx.int8.onnx'), n(' — 解码器'))
+normal(b('joiner-epoch-xx.int8.onnx'), n(' — 连接器'))
+normal(b('tokens.txt'), n(' — 词汇表文件'))
+normal(n('软件会自动识别文件夹中的模型类型，无需手动指定每个文件路径。'))
+
+blank()
+
+# ─── 第五章 ────────────────────────────────────────────────────────────────────
+h2('🔧 第五章: Vosk 离线语音模型配置（可选）')
 normal(n('如果你需要使用 '), b('Vosk'), n(' 引擎（而不是内置的 Sherpa-ONNX），需要手动下载模型。'))
 
 h3('1. 下载 Vosk 模型')
@@ -313,8 +413,8 @@ normal(b('⚠️ 路径注意：'), n('若路径包含中文或空格，Vosk 可
 
 blank()
 
-# ─── 第五章 ────────────────────────────────────────────────────────────────────
-h2('🔧 第五章: GPT-SoVITS 下载 & 后台设置 (进阶)')
+# ─── 第六章 ────────────────────────────────────────────────────────────────────
+h2('🔧 第六章: GPT-SoVITS 下载 & 后台设置 (进阶)')
 normal(n('如果你想使用克隆音色（GPT-SoVITS 本地模式），必须先启动后台服务。'))
 
 h3('1. 下载整合包')
@@ -341,7 +441,7 @@ normal(b('参考音频：'), n('准备一段该角色的 .wav 或 .mp3 录音（
 blank()
 
 # ─── 第六章 ────────────────────────────────────────────────────────────────────
-h2('❓ 第六章: 常见问题汇总 (FAQ)')
+h2('❓ 第七章: 常见问题汇总 (FAQ)')
 
 h3('Q1: 软件提示 "API连接失败" 或 "Connection Error"')
 normal(b('原因 1：'), n('GPT-SoVITS 后台没开，或者开成了网页版（WebUI）。'))

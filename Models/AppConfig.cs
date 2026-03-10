@@ -27,6 +27,7 @@ public sealed class AppConfig
     public double VolumePercent { get; set; } = 100;
     public double GptSpeed { get; set; } = 1.0;
 
+    public bool EnableTts { get; set; } = true;
     public bool ForceSync { get; set; } = true;
     public bool CleanPunctuation { get; set; }
 

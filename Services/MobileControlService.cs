@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -648,7 +648,7 @@ internal sealed class MobileControlLabels
                 TextPlaceholder = "말할 내용을 입력",
                 Send = "전송",
                 OkMessage = "전송 완료",
-                EmptyMessage = "입력 내용이 없어 전송하지 않았습니다.",
+                EmptyMessage = "내용이 비어 있어 전송하지 않았습니다.",
             },
             _ => new MobileControlLabels(),
         };

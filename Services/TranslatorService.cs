@@ -200,37 +200,36 @@ public sealed class TranslatorService
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", config.UniversalKey);
         }
 
-        var prompt = (config.UniversalPrompt ?? string.Empty)
-            .Replace("{target}", LangDisplay.TryGetValue(target, out var d) ? d : target, StringComparison.OrdinalIgnoreCase);
+        var prompt = BuildUniversalPrompt(config, target, strictRetry: false);
+        var translated = await SendUniversalTranslationRequestAsync(
+            client,
+            url,
+            config,
+            prompt,
+            BuildUserTranslationMessage(text, target, strictRetry: false),
+            cancellationToken);
 
-        var payload = new
+        if (ShouldRetryAsStrictQuestionTranslation(text, translated, target))
         {
-            model = string.IsNullOrWhiteSpace(config.UniversalModel) ? "glm-4-flash" : config.UniversalModel,
-            messages = new[]
-            {
-                new { role = "system", content = prompt },
-                new { role = "user", content = text }
-            },
-            temperature = 0.1
-        };
-
-        using var req = new HttpRequestMessage(HttpMethod.Post, url)
-        {
-            Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json")
-        };
-
-        using var resp = await client.SendAsync(req, cancellationToken);
-        if (!resp.IsSuccessStatusCode)
-        {
-            var failBody = await resp.Content.ReadAsStringAsync(cancellationToken);
             RuntimeLogService.Warn(
-                $"Universal translation failed. target={target}, status={(int)resp.StatusCode}, body={ShortBody(failBody)}");
-            return text;
+                $"Universal translation looked like an answer. target={target}, source={ShortBody(text)}, first={ShortBody(translated ?? string.Empty)}");
+
+            var retryPrompt = BuildUniversalPrompt(config, target, strictRetry: true);
+            var retryTranslated = await SendUniversalTranslationRequestAsync(
+                client,
+                url,
+                config,
+                retryPrompt,
+                BuildUserTranslationMessage(text, target, strictRetry: true),
+                cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(retryTranslated))
+            {
+                translated = retryTranslated;
+            }
         }
 
-        var body = await resp.Content.ReadAsStringAsync(cancellationToken);
-        var jo = JObject.Parse(body);
-        return jo["choices"]?[0]?["message"]?["content"]?.ToString()?.Trim() ?? text;
+        return translated ?? text;
     }
 
     private static async Task<string?> TranslateByGoogleAsync(
@@ -351,5 +350,145 @@ public sealed class TranslatorService
 
         var line = body.Replace('\r', ' ').Replace('\n', ' ').Trim();
         return line.Length <= 240 ? line : line[..240];
+    }
+
+    private static string BuildUniversalPrompt(TranslationConfig config, string target, bool strictRetry)
+    {
+        var lang = LangDisplay.TryGetValue(target, out var d) ? d : target;
+        var basePrompt = (config.UniversalPrompt ?? string.Empty)
+            .Replace("{target}", lang, StringComparison.OrdinalIgnoreCase);
+
+        if (!strictRetry)
+        {
+            return basePrompt;
+        }
+
+        return basePrompt +
+               $" CRITICAL RULE: Translate into {lang} only. If the source asks a question, output only the translated question. Never answer it. Never define terms. Never explain concepts. Never write any extra sentence before or after the translation. If you answer instead of translate, the output is wrong.";
+    }
+
+    private static string BuildUserTranslationMessage(string text, string target, bool strictRetry)
+    {
+        var lang = LangDisplay.TryGetValue(target, out var d) ? d : target;
+        var instruction = strictRetry
+            ? $"Translate the SOURCE_TEXT below into {lang}. Return the translated text only. Do not answer the question. Do not explain anything."
+            : $"Translate the SOURCE_TEXT below into {lang}. Return the translated text only.";
+
+        return $"{instruction}\nSOURCE_TEXT_BEGIN\n{text}\nSOURCE_TEXT_END";
+    }
+
+    private static async Task<string?> SendUniversalTranslationRequestAsync(
+        HttpClient client,
+        string url,
+        TranslationConfig config,
+        string systemPrompt,
+        string userMessage,
+        CancellationToken cancellationToken)
+    {
+        var payload = new
+        {
+            model = string.IsNullOrWhiteSpace(config.UniversalModel) ? "glm-4-flash" : config.UniversalModel,
+            messages = new[]
+            {
+                new { role = "system", content = systemPrompt },
+                new { role = "user", content = userMessage }
+            },
+            temperature = 0.0
+        };
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json")
+        };
+
+        using var resp = await client.SendAsync(req, cancellationToken);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var failBody = await resp.Content.ReadAsStringAsync(cancellationToken);
+            RuntimeLogService.Warn(
+                $"Universal translation failed. status={(int)resp.StatusCode}, body={ShortBody(failBody)}");
+            return null;
+        }
+
+        var body = await resp.Content.ReadAsStringAsync(cancellationToken);
+        var jo = JObject.Parse(body);
+        return jo["choices"]?[0]?["message"]?["content"]?.ToString()?.Trim();
+    }
+
+    private static bool ShouldRetryAsStrictQuestionTranslation(string source, string? translated, string target)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(translated))
+        {
+            return false;
+        }
+
+        var src = source.Trim();
+        var dst = translated.Trim();
+        if (!LooksLikeQuestion(src))
+        {
+            return false;
+        }
+
+        if (dst.Length > Math.Max(src.Length * 3, src.Length + 30))
+        {
+            return true;
+        }
+
+        if (!LooksLikeQuestion(dst) && LooksLikeAnswer(dst, target))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool LooksLikeQuestion(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var value = text.Trim();
+        if (value.Contains('?') || value.Contains('？'))
+        {
+            return true;
+        }
+
+        string[] markers =
+        {
+            "什么", "是啥", "是什么", "什么意思", "怎么", "为什么", "如何",
+            "what", "who", "why", "how", "where", "when", "which",
+            "とは", "何", "どう", "なぜ",
+            "무엇", "뭐", "왜", "어떻게", "무슨"
+        };
+
+        return markers.Any(marker => value.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool LooksLikeAnswer(string text, string target)
+    {
+        var value = text.Trim();
+        string[] generalMarkers =
+        {
+            "是指", "通常", "一种", "一个", "概念", "代表", "指的是", "本质",
+            "refers to", "is a", "is an", "usually", "means", "concept",
+            "とは", "です", "ます", "指します",
+            "입니다", "뜻", "의미", "가리킵니다"
+        };
+
+        if (generalMarkers.Any(marker => value.Contains(marker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return target switch
+        {
+            "zh" => value.Contains('。') && !value.Contains('？'),
+            "en" => value.Contains('.') && !value.Contains('?'),
+            "ja" => value.Contains('。') && !value.Contains('？'),
+            "ko" => value.Contains('.') && !value.Contains('?'),
+            _ => false
+        };
     }
 }
