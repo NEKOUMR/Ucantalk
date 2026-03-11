@@ -66,7 +66,7 @@ $iscc = Resolve-IsccPath -CandidatePath $IsccPath
 
 $iss = Join-Path $projectRoot "packaging\inno\VRC_cantalkcn.iss"
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = Get-Date -Format "1.0.yyMMdd.HHmm"
+    $Version = "1.1.0"
 }
 
 Write-Host "Building installer version: $Version"

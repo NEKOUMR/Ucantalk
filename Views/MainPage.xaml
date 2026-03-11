@@ -125,6 +125,75 @@
 
                             <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                                 <StackPanel Spacing="8">
+                                    <TextBlock Text="快捷卡片" FontWeight="SemiBold"/>
+                                    <TextBlock Text="快捷卡片（点击直接发送，可自定义）" Opacity="0.75"/>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="QuickPhraseInputBox" Grid.Column="0" PlaceholderText="输入卡片内容，例如：你好"/>
+                                        <Button x:Name="QuickPhraseAddButton" Grid.Column="1" Content="添加" Click="QuickPhraseAddButton_Click"/>
+                                    </Grid>
+                                    <ListView
+                                        x:Name="QuickPhraseListView"
+                                        Height="132"
+                                        SelectionMode="None"
+                                        IsItemClickEnabled="True"
+                                        ScrollViewer.HorizontalScrollMode="Enabled"
+                                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                        ScrollViewer.VerticalScrollMode="Disabled"
+                                        ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                        ScrollViewer.IsHorizontalRailEnabled="True"
+                                        ScrollViewer.IsVerticalRailEnabled="False"
+                                        ItemClick="QuickPhraseListView_ItemClick">
+                                        <ListView.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <ItemsStackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ListView.ItemsPanel>
+                                        <ListView.ItemContainerStyle>
+                                            <Style TargetType="ListViewItem">
+                                                <Setter Property="Margin" Value="0,0,10,0"/>
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border
+                                                    Width="220"
+                                                    MinHeight="96"
+                                                    Padding="10"
+                                                    CornerRadius="8"
+                                                    BorderThickness="1"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                    Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                                    <Grid RowSpacing="8">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Text="{Binding Text}" TextWrapping="WrapWholeWords" MaxLines="3" TextTrimming="CharacterEllipsis"/>
+                                                        <Grid Grid.Row="1">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="点击发送" Opacity="0.7" FontSize="12" VerticalAlignment="Center"/>
+                                                            <Button Grid.Column="1" Content="删除" Tag="{Binding}" Click="QuickPhraseDeleteButton_Click"/>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                            </Border>
+
+                            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                                <StackPanel Spacing="8">
                                     <ToggleSwitch x:Name="RecentSpeechHistorySwitch" Header="记录最近10句并可重发" Toggled="RecentSpeechHistorySwitch_Toggled"/>
                                     <Grid x:Name="RecentSpeechHistoryPanel" RowSpacing="6">
                                         <Grid.RowDefinitions>

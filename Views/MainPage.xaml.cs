@@ -69,6 +69,7 @@ public sealed partial class MainPage : Page
     private readonly SemaphoreSlim _speechAutoSendGate = new(1, 1);
     private const int MaxRecentSpeechHistory = 10;
     private readonly ObservableCollection<RecentSpeechHistoryEntry> _recentSpeechHistory = new();
+    private readonly ObservableCollection<QuickPhraseEntry> _quickPhrases = new();
     private DateTime _lastGptApiStartAttemptUtc = DateTime.MinValue;
     private DateTime _lastWindowPositionChangedUtc = DateTime.MinValue;
     private readonly SemaphoreSlim _speechStateGate = new(1, 1);
@@ -95,6 +96,7 @@ public sealed partial class MainPage : Page
     {
         InitializeComponent();
         RecentSpeechHistoryListView.ItemsSource = _recentSpeechHistory;
+        QuickPhraseListView.ItemsSource = _quickPhrases;
 
         _speechInputService.TextRecognized += SpeechInputService_TextRecognized;
         RuntimeLogService.LogAdded += RuntimeLogService_LogAdded;
@@ -795,7 +797,31 @@ public sealed partial class MainPage : Page
 
     private async void RecentSpeechHistoryListView_ItemClick(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is not RecentSpeechHistoryEntry entry || string.IsNullOrWhiteSpace(entry.Text))
+        if (e.ClickedItem is not RecentSpeechHistoryEntry entry)
+        {
+            return;
+        }
+
+        var replayText = !string.IsNullOrWhiteSpace(entry.ReplayText)
+            ? entry.ReplayText
+            : !string.IsNullOrWhiteSpace(entry.ChatText)
+                ? entry.ChatText
+                : !string.IsNullOrWhiteSpace(entry.SpokenText)
+                    ? entry.SpokenText
+                    : entry.Text;
+
+        if (string.IsNullOrWhiteSpace(replayText))
+        {
+            return;
+        }
+
+        InputTextBox.Text = replayText;
+        await SendCurrentTextAsync();
+    }
+
+    private async void QuickPhraseListView_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not QuickPhraseEntry entry || string.IsNullOrWhiteSpace(entry.Text))
         {
             return;
         }
@@ -804,42 +830,99 @@ public sealed partial class MainPage : Page
         await SendCurrentTextAsync();
     }
 
-    private void AddRecentSpeechHistory(string text)
+    private void QuickPhraseAddButton_Click(object sender, RoutedEventArgs e)
+    {
+        var text = QuickPhraseInputBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            SetStatus(L("快捷卡片内容不能为空。"));
+            return;
+        }
+
+        if (_quickPhrases.Any(x => string.Equals(x.Text, text, StringComparison.OrdinalIgnoreCase)))
+        {
+            SetStatus(LF("已存在同名快捷卡片: {0}", text));
+            return;
+        }
+
+        _quickPhrases.Insert(0, new QuickPhraseEntry
+        {
+            Text = text
+        });
+        while (_quickPhrases.Count > 20)
+        {
+            _quickPhrases.RemoveAt(_quickPhrases.Count - 1);
+        }
+
+        PersistQuickPhrasesToConfig();
+        QuickPhraseInputBox.Text = string.Empty;
+        SetStatus(LF("快捷卡片已添加: {0}", text));
+    }
+
+    private void QuickPhraseDeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: QuickPhraseEntry entry })
+        {
+            return;
+        }
+
+        for (var i = 0; i < _quickPhrases.Count; i++)
+        {
+            if (string.Equals(_quickPhrases[i].Id, entry.Id, StringComparison.Ordinal))
+            {
+                var text = _quickPhrases[i].Text;
+                _quickPhrases.RemoveAt(i);
+                PersistQuickPhrasesToConfig();
+                SetStatus(LF("快捷卡片已删除: {0}", text));
+                break;
+            }
+        }
+    }
+
+    private void PersistQuickPhrasesToConfig()
+    {
+        _config.QuickPhrases = _quickPhrases
+            .Select(x => x.Text?.Trim() ?? string.Empty)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+        _configService.Save(_config);
+    }
+
+    private void AddRecentSpeechHistory(string replayText, string? chatText, string? spokenText)
     {
         if (!RecentSpeechHistorySwitch.IsOn)
         {
             return;
         }
 
-        var normalized = text.Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
+        var entry = RecentSpeechHistoryEntry.Create(replayText, chatText, spokenText);
+        if (string.IsNullOrWhiteSpace(entry.Text))
         {
             return;
         }
 
+        var normalizedKey = !string.IsNullOrWhiteSpace(entry.ReplayText) ? entry.ReplayText : entry.Text;
+
         for (var i = 0; i < _recentSpeechHistory.Count; i++)
         {
-            if (string.Equals(_recentSpeechHistory[i].Text, normalized, StringComparison.OrdinalIgnoreCase))
+            var existing = _recentSpeechHistory[i];
+            var existingKey = !string.IsNullOrWhiteSpace(existing.ReplayText) ? existing.ReplayText : existing.Text;
+            if (string.Equals(existingKey, normalizedKey, StringComparison.OrdinalIgnoreCase))
             {
                 _recentSpeechHistory.RemoveAt(i);
                 break;
             }
         }
 
-        _recentSpeechHistory.Insert(0, new RecentSpeechHistoryEntry
-        {
-            Text = normalized,
-        });
+        _recentSpeechHistory.Insert(0, entry);
         while (_recentSpeechHistory.Count > MaxRecentSpeechHistory)
         {
             _recentSpeechHistory.RemoveAt(_recentSpeechHistory.Count - 1);
         }
 
-        _config.RecentSpeechHistory = _recentSpeechHistory
-            .Take(MaxRecentSpeechHistory)
-            .Select(x => x.Text)
-            .ToList();
-        _configService.Save(_config);
+        PersistRecentSpeechHistoryToConfig();
         UpdateRecentSpeechHistoryUiState();
 
         DispatcherQueue.TryEnqueue(() =>
@@ -859,6 +942,22 @@ public sealed partial class MainPage : Page
                 RuntimeLogService.Warn($"Scroll recent speech history failed: {ex.Message}");
             }
         });
+    }
+
+    private void PersistRecentSpeechHistoryToConfig()
+    {
+        _config.RecentSpeechHistoryEntries = _recentSpeechHistory
+            .Take(MaxRecentSpeechHistory)
+            .Select(x =>
+            {
+                x.Normalize();
+                return x.Clone();
+            })
+            .ToList();
+        _config.RecentSpeechHistory = _config.RecentSpeechHistoryEntries
+            .Select(x => !string.IsNullOrWhiteSpace(x.ReplayText) ? x.ReplayText : x.Text)
+            .ToList();
+        _configService.Save(_config);
     }
 
     private void UpdateRecentSpeechHistoryUiState()
@@ -944,7 +1043,10 @@ public sealed partial class MainPage : Page
                     TrySendOscChatbox(translation.DisplayText);
                 }
 
-                AddRecentSpeechHistory(translation.DisplayText);
+                AddRecentSpeechHistory(
+                    rawText,
+                    _config.EnableTextOutput ? translation.DisplayText : string.Empty,
+                    string.Empty);
                 SetStatus(L("已发送翻译文本（TTS已关闭）。"));
                 return;
             }
@@ -973,6 +1075,11 @@ public sealed partial class MainPage : Page
                 TrySendOscChatbox(translation.DisplayText);
             }
 
+            AddRecentSpeechHistory(
+                rawText,
+                _config.EnableTextOutput ? translation.DisplayText : string.Empty,
+                translation.TtsText);
+
             speechCaptureSuppressed = TrySuppressSpeechCaptureForPlayback();
             SetStatus(L("播放中..."));
             var volume = (float)Math.Clamp(_config.VolumePercent / 100.0, 0.0, 3.0);
@@ -997,7 +1104,6 @@ public sealed partial class MainPage : Page
                 SetStatus(LF("播放设备异常，已回退默认设备: {0}", playEx.Message));
             }
 
-            AddRecentSpeechHistory(_config.EnableTextOutput ? translation.DisplayText : translation.TtsText);
             SetStatus(_config.EnableTextOutput ? L("就绪") : L("已播放语音（未输出文字）。"));
         }
         catch (Exception ex)
@@ -2494,13 +2600,24 @@ public sealed partial class MainPage : Page
         ForceSyncSwitch.IsOn = _config.ForceSync;
         CleanPuncSwitch.IsOn = _config.CleanPunctuation;
         RecentSpeechHistorySwitch.IsOn = _config.EnableRecentSpeechHistory;
-        _recentSpeechHistory.Clear();
-        foreach (var sentence in (_config.RecentSpeechHistory ?? new List<string>()).Take(MaxRecentSpeechHistory))
+        _quickPhrases.Clear();
+        foreach (var phrase in (_config.QuickPhrases ?? new List<string>()).Take(20))
         {
-            _recentSpeechHistory.Add(new RecentSpeechHistoryEntry
+            _quickPhrases.Add(new QuickPhraseEntry
             {
-                Text = sentence,
+                Text = phrase
             });
+        }
+        _recentSpeechHistory.Clear();
+        var historyEntries = _config.RecentSpeechHistoryEntries?.Count > 0
+            ? _config.RecentSpeechHistoryEntries
+            : (_config.RecentSpeechHistory ?? new List<string>())
+                .Select(x => RecentSpeechHistoryEntry.Create(x, x, x))
+                .ToList();
+        foreach (var entry in historyEntries.Take(MaxRecentSpeechHistory))
+        {
+            entry.Normalize();
+            _recentSpeechHistory.Add(entry.Clone());
         }
         UpdateRecentSpeechHistoryUiState();
 
@@ -2570,9 +2687,22 @@ public sealed partial class MainPage : Page
         _config.ForceSync = ForceSyncSwitch.IsOn;
         _config.CleanPunctuation = CleanPuncSwitch.IsOn;
         _config.EnableRecentSpeechHistory = RecentSpeechHistorySwitch.IsOn;
-        _config.RecentSpeechHistory = _recentSpeechHistory
+        _config.QuickPhrases = _quickPhrases
+            .Select(x => x.Text?.Trim() ?? string.Empty)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+        _config.RecentSpeechHistoryEntries = _recentSpeechHistory
             .Take(MaxRecentSpeechHistory)
-            .Select(x => x.Text)
+            .Select(x =>
+            {
+                x.Normalize();
+                return x.Clone();
+            })
+            .ToList();
+        _config.RecentSpeechHistory = _config.RecentSpeechHistoryEntries
+            .Select(x => !string.IsNullOrWhiteSpace(x.ReplayText) ? x.ReplayText : x.Text)
             .ToList();
 
         _config.MonitorDeviceId = MonitorDeviceCombo.SelectedValue?.ToString() ?? string.Empty;

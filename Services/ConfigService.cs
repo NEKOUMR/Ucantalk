@@ -105,10 +105,40 @@ public sealed class ConfigService
         config.PlayerMonitorDeviceId = (config.PlayerMonitorDeviceId ?? string.Empty).Trim();
         config.PlayerVrcDeviceId = (config.PlayerVrcDeviceId ?? string.Empty).Trim();
         config.PlayerVolumePercent = Math.Clamp(config.PlayerVolumePercent, 0, 300);
+        config.QuickPhrases ??= new List<string>();
+        config.QuickPhrases = config.QuickPhrases
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
         config.RecentSpeechHistory ??= new List<string>();
+        config.RecentSpeechHistoryEntries ??= new List<RecentSpeechHistoryEntry>();
         config.RecentSpeechHistory = config.RecentSpeechHistory
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
+            .Take(10)
+            .ToList();
+        if (config.RecentSpeechHistoryEntries.Count == 0 && config.RecentSpeechHistory.Count > 0)
+        {
+            config.RecentSpeechHistoryEntries = config.RecentSpeechHistory
+                .Select(x => RecentSpeechHistoryEntry.Create(x, x, x))
+                .ToList();
+        }
+
+        config.RecentSpeechHistoryEntries = config.RecentSpeechHistoryEntries
+            .Where(x => x is not null)
+            .Select(x =>
+            {
+                x.Normalize();
+                return x.Clone();
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Text))
+            .Take(10)
+            .ToList();
+
+        config.RecentSpeechHistory = config.RecentSpeechHistoryEntries
+            .Select(x => !string.IsNullOrWhiteSpace(x.ReplayText) ? x.ReplayText : x.Text)
             .Take(10)
             .ToList();
 

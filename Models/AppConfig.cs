@@ -47,7 +47,9 @@ public sealed class AppConfig
     public string PlayerVrcDeviceId { get; set; } = string.Empty;
     public double PlayerVolumePercent { get; set; } = 100;
     public bool EnableRecentSpeechHistory { get; set; } = true;
+    public List<string> QuickPhrases { get; set; } = new();
     public List<string> RecentSpeechHistory { get; set; } = new();
+    public List<RecentSpeechHistoryEntry> RecentSpeechHistoryEntries { get; set; } = new();
 
     public List<VoiceProfile> Profiles { get; set; } = new()
     {
