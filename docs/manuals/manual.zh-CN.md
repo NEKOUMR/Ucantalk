@@ -277,7 +277,9 @@ Sherpa-ONNX 是软件默认的离线语音识别引擎，支持 CPU / NVIDIA GPU
 
 ## 第六章：GPT-SoVITS 下载与后台设置（进阶）
 
-如果你要使用 GPT-SoVITS 的本地克隆音色模式，必须先启动后台 API 服务。
+如果你要使用 GPT-SoVITS 的本地克隆音色模式，必须先启动后台 API 服务和下载python
+下载python:https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
+
 
 ### 1. 下载整合包
 
